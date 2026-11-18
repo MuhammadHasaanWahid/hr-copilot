@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Secrets - never commit
+.env
+.streamlit/secrets.toml
+
+# Local databases
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# The assessment brief is confidential - keep it out of the public repo.
+*.pdf

@@ -1,0 +1,32 @@
+[project]
+name = "hr-copilot"
+version = "1.0.0"
+description = "Governed, agentic HR operations assistant (proof of concept)"
+authors = [{ name = "Hasaan Wahid" }]
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 150
+target-version = "py310"
+extend-exclude = ["data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "S", "UP"]
+ignore = [
+    "S101",   # asserts are fine in tests/scripts
+    "S311",   # random is used only to generate synthetic demo data
+    "S608",   # SQL built only from fixed fragments and '?' placeholders, never from user input
+    "B008",   # FastAPI Depends() in defaults is the framework idiom
+    "E731",
+    "UP031",  # %-formatting is used only to build '?' placeholder lists
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S105", "S106"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "data"]
+skips = ["B101", "B311", "B608"]

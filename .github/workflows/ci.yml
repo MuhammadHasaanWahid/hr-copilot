@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      HR_LLM_MODE: offline        # CI never calls the paid model
+      HR_DB_PATH: ":memory:"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: pip install -r requirements-dev.txt
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Unit, integration, governance and UI tests
+        run: pytest -q
+      - name: Offline evaluation set (must be 100%)
+        run: python evals/run_evals.py --mode offline --min-pass 1.0
+      - name: Security scan (bandit)
+        run: bandit -q -r app frontend -c pyproject.toml
+      - name: Dependency vulnerability audit (pip-audit)
+        run: pip-audit -r requirements.txt

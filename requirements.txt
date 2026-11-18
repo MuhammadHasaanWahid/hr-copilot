@@ -1,0 +1,12 @@
+# Runtime dependencies (pinned). Used by the API, the Streamlit app and Streamlit Community Cloud.
+google-genai==3.5.0
+anthropic==2.10.0
+fastapi==0.164.0
+uvicorn==0.54.0
+pydantic==2.14.3
+PyJWT==2.15.1
+requests==2.34.2
+httpx==0.28.1
+streamlit==1.67.0
+pandas==3.1.1
+altair==6.3.0
