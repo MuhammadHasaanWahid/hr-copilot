@@ -193,7 +193,16 @@ class RequestService:
                   and d["awaiting"] == "requester confirmation"]
         cases = [self._case_item(c) for c in all_props if c["requester"]["id"] == p.id
                  and c["awaiting"] != "requester confirmation"]
-        return {"drafts": drafts, "requests": sorted(leave + cases, key=lambda x: (x["submitted_at"] or ""), reverse=True)}
+        # Routing health: are this person's approvals going to their current manager?
+        emp = self.s.hris.get(p.id)
+        route = self.s.workflow.route(p.id)
+        routing_issue = None
+        if emp["manager_id"] and route and route["approver_id"] != emp["manager_id"]:
+            routing_issue = {"current_manager": self._name(emp["manager_id"]), "routed_to": self._name(route["approver_id"]),
+                             "fix_requested": any(c["type"] == "request_routing_fix" and c["status"] == "pending"
+                                                  for c in cases)}
+        return {"drafts": drafts, "requests": sorted(leave + cases, key=lambda x: (x["submitted_at"] or ""), reverse=True),
+                "routing_issue": routing_issue}
 
     def inbox(self, p: Principal) -> dict:
         if p.can("leave.review.all"):
@@ -244,4 +253,11 @@ class RequestService:
             members.append({"id": e["id"], "name": e["name"], "title": e["title"],
                             "annual_available": b["available"] if b else None,
                             "next_leave": f"{nxt['start_date']} to {nxt['end_date']} ({nxt['status']})" if nxt else "-"})
-        return {"members": members}
+        # Team members whose pending requests are stuck with someone else (approval-routing error).
+        ids = [m["id"] for m in members]
+        stuck = self.s.db.query(
+            "SELECT employee_id, approver_id, COUNT(*) AS n FROM leave_requests WHERE status='pending' AND approver_id != ? "
+            "AND employee_id IN (%s) GROUP BY employee_id, approver_id" % ",".join("?" * len(ids)), [p.id, *ids]) if ids else []
+        misrouted = [{"employee": self._name(r["employee_id"]), "routed_to": self._name(r["approver_id"]),
+                      "requests": r["n"]} for r in stuck]
+        return {"members": members, "misrouted": misrouted}

@@ -62,6 +62,9 @@ st.markdown("""
   .hc-muted {color: #6b6f76; font-size: 0.92rem;}
   .hc-brand {font-weight: 700; font-size: 1.15rem; letter-spacing: -0.01em;}
   .hc-hero {font-size: 2.2rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.2rem;}
+  [data-testid="stChatMessage"] h1, [data-testid="stChatMessage"] h2, [data-testid="stChatMessage"] h3,
+  [data-testid="stChatMessage"] h4 {font-size: 1.02rem !important; font-weight: 650; margin: 0.6rem 0 0.2rem; padding: 0;}
+  [data-testid="stChatMessage"] p, [data-testid="stChatMessage"] li {font-size: 0.98rem; line-height: 1.55;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -187,6 +190,9 @@ def page_home() -> None:
     cols[2].metric("Absences (90 days)", len(ov["absences_last_90_days"]))
     nxt = ov["upcoming_leave"][0]["title"].split(" (")[0] if ov["upcoming_leave"] else "None planned"
     cols[3].metric("Next leave", nxt)
+    if ss.get("flash"):
+        st.success(ss.pop("flash"))
+    routing_banner(mine)
     if role() != "EMPLOYEE":
         inbox = call(client.inbox)
         waiting = len(inbox["leave"]) + len(inbox["cases"])
@@ -214,6 +220,30 @@ def page_home() -> None:
         st.markdown("#### Recent requests")
         for r in mine["requests"][:4]:
             request_row(r)
+
+
+def routing_banner(mine: dict) -> None:
+    """Explain an approval-routing error to the employee and let them ask HR to fix it."""
+    issue = mine.get("routing_issue")
+    if not issue:
+        return
+    if issue["fix_requested"]:
+        st.info(f"Your requests still go to **{esc(issue['routed_to'])}** instead of your manager "
+                f"**{esc(issue['current_manager'])}**. A fix has been requested and is waiting for the HR systems "
+                "administrator.", icon=":material/hourglass_top:")
+        return
+    with st.container(border=True):
+        a, b = st.columns([4, 1.3], vertical_alignment="center")
+        a.markdown(f":orange[**Your approvals are going to the wrong person.**]  \nYour leave requests are sent to "
+                   f"**{esc(issue['routed_to'])}** (your previous manager) instead of **{esc(issue['current_manager'])}**. "
+                   "They won't be reviewed by your current manager until this is fixed.")
+        if b.button("Ask HR to fix this", type="primary", use_container_width=True, key="fixroute"):
+            try:
+                call(client.raise_routing_fix, ss.user["id"])
+                st.session_state.flash = "Fix requested. Once HR approves it, your pending requests move to your manager."
+            except ClientError as exc:
+                st.session_state.flash = f"Could not request the fix: {exc}"
+            st.rerun()
 
 
 def request_row(r: dict) -> None:
@@ -275,7 +305,8 @@ def render_answer(m: dict) -> None:
         else:
             st.badge("Partly unverified", icon=":material/warning:", color="orange")
         if r["trace"]:
-            st.badge(f"{len(r['trace'])} sources checked", color="gray")
+            n = len(r["trace"])
+            st.badge(f"{n} source{'s' if n != 1 else ''} checked", color="gray")
     if r.get("notice"):
         st.caption(f"ℹ️ {r['notice']}")
     if r["trace"]:
@@ -390,6 +421,7 @@ def page_requests() -> None:
     if ss.get("flash"):
         st.success(ss.pop("flash"))
     mine = call(client.my_requests)
+    routing_banner(mine)
     if mine["drafts"]:
         st.markdown("#### Waiting for your confirmation")
         st.caption("Prepared by the assistant. Nothing is sent until you confirm.")
@@ -525,6 +557,10 @@ def decision_controls(kind: str, rid: int) -> None:
 def team_panel() -> None:
     t = call(client.team)
     plan = t.get("coverage_plan")
+    for m in t.get("misrouted", []):
+        st.warning(f"**{esc(m['employee'])}**'s leave request ({m['requests']}) is waiting with **{esc(m['routed_to'])}** "
+                   "because of an approval-routing error, so it isn't in your list below. It will appear here as soon "
+                   "as HR fixes the routing.", icon=":material/alt_route:")
     with st.container(border=True):
         st.markdown("**Team overview**")
         st.dataframe([{"Name": m["name"], "Role": m["title"], "Leave left": m["annual_available"],

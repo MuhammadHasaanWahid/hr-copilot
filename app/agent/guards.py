@@ -23,7 +23,9 @@ CLAUSE_RE = re.compile(r"\b[A-Z]{2}-\d+\.\d+\b")
 LIST_MARKER_RE = re.compile(r"^\s*\d+[.)]\s", re.M)
 TABLE_RULE_RE = re.compile(r"^\s*\|?[\s:|-]+\|?\s*$", re.M)
 CLAIM_RE = re.compile(
-    r"\b(?:has|have|had)\s+(?:now\s+)?been\s+(?:successfully\s+)?(submitted|approved|fixed|updated|reassigned|executed|re-?routed)\b"
+    # "has been updated" is excluded on purpose: it usually describes a fact in the records
+    # ("his reporting line has been updated"), not an action the assistant claims to have taken.
+    r"\b(?:has|have|had)\s+(?:now\s+)?been\s+(?:successfully\s+)?(submitted|approved|fixed|reassigned|executed|re-?routed)\b"
     r"|\bI(?:'ve| have)\s+(?:now\s+)?(?:successfully\s+)?(submitted|approved|fixed|updated|reassigned|executed|re-?routed)\b"
     r"|\b(?:is|are)\s+now\s+(fixed|approved|submitted|reassigned|re-?routed)\b"
     r"|\bsuccessfully\s+(submitted|approved|fixed|updated|reassigned|re-?routed)\b",
