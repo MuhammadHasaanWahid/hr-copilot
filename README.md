@@ -83,7 +83,7 @@ Streamlit UI  →  Service / API (login, limits)  →  AI assistant (Gemini; Cla
 | Check | Result |
 |---|---|
 | Automated tests | **57 passing**: rules, permissions, request workflow, login, AI loops, full UI journeys |
-| Test questions with real Gemini (29 cases, incl. hacking attempts) | **28/29 passed** in the latest full run · **0 data leaks · 0 unapproved actions** ([details](docs/EVALS.md)) |
+| Test questions with real Gemini (29 cases, incl. hacking attempts) | **29/29 passed**, every answer fact-checked · **0 data leaks · 0 unapproved actions** ([details](docs/EVALS.md)) |
 | Same questions, built-in assistant | **26/26 passed** |
 | Scale test (50,000 employees) | Personal checks ≤ 2 ms · company-wide absence analysis ~0.8 s ([details](docs/SCALE.md)) |
 | Security scans | Clean |
