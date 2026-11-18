@@ -58,7 +58,7 @@ class Settings:
     gemini_model: str = field(default_factory=lambda: _env("HR_GEMINI_MODEL", "gemini-3.5-flash-lite"))
     # Tried in order when the primary model is rate-limited / out of free quota / unavailable.
     gemini_fallback_models: str = field(default_factory=lambda: _env("HR_GEMINI_FALLBACK_MODELS",
-                                                                     "gemini-3.1-flash-lite,gemini-2.5-flash"))
+                                                                     "gemini-3.1-flash-lite,gemini-3.6-flash"))
     claude_model: str = field(default_factory=lambda: _env("HR_CLAUDE_MODEL", _env("HR_MODEL", "claude-opus-5-5")))
     effort: str = field(default_factory=lambda: _env("HR_EFFORT", "medium"))
     aws_region: str = field(default_factory=lambda: _env("AWS_REGION", "eu-west-1"))
