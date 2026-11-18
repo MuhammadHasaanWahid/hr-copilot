@@ -9,6 +9,10 @@ textColor = "#0b0b0b"
 maxUploadSize = 1
 enableXsrfProtection = true
 
+[runner]
+# No "magic": bare expressions are never auto-rendered (prevents stray internal output in the UI).
+magicEnabled = false
+
 [browser]
 gatherUsageStats = false
 

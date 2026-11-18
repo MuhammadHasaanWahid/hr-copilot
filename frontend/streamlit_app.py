@@ -290,7 +290,10 @@ def page_assistant() -> None:
                "requests it prepares wait for your confirmation.")
     for m in ss.messages:
         with st.chat_message(m["role"], avatar="🧑" if m["role"] == "user" else "🧭"):
-            render_answer(m) if m["role"] == "assistant" else st.markdown(esc(m["content"]))
+            if m["role"] == "assistant":
+                render_answer(m)
+            else:
+                st.markdown(esc(m["content"]))
     if not ss.messages:
         st.write("")
         st.markdown("**Suggested questions**")
@@ -602,8 +605,11 @@ def page_insights() -> None:
 def page_audit() -> None:
     st.markdown("## Audit log")
     aud = call(client.audit)
-    (st.success if aud["chain_valid"] else st.error)(
-        f"Tamper check: {'passed' if aud['chain_valid'] else 'FAILED'} · {aud['total_entries']} entries")
+    msg = f"Tamper check: {'passed' if aud['chain_valid'] else 'FAILED'} · {aud['total_entries']} entries"
+    if aud["chain_valid"]:
+        st.success(msg)
+    else:
+        st.error(msg)
     st.dataframe([{"#": e["seq"], "Time (UTC)": e["ts"], "User": e["actor"], "Event": e["event"],
                    "Details": json.dumps(e["details"])[:200]} for e in aud["entries"]],
                  hide_index=True, use_container_width=True, height=520)

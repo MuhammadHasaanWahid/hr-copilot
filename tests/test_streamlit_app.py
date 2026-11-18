@@ -30,6 +30,10 @@ def _sign_out(at: AppTest) -> None:
     next(b for b in at.button if b.label == "Sign out").click().run()
 
 
+def _no_stray_output(at: AppTest) -> None:
+    assert not at.get("help"), "internal object rendered in the UI (Streamlit magic)"
+
+
 def _text(at: AppTest) -> str:
     return " ".join(m.value for m in at.markdown) + " " + " ".join(c.value for c in at.caption)
 
@@ -52,6 +56,7 @@ def test_assistant_request_and_admin_approval_journey():
     assert not at.exception, at.exception
     replies = [m for m in at.chat_message if m.name == "assistant"]
     assert replies and "Hina Shah" in replies[-1].markdown[0].value
+    _no_stray_output(at)
     # the high-risk fix is waiting for an HR administrator, not for Bilal
     _sign_out(at)
     _sign_in(at, "E0502")
@@ -80,5 +85,6 @@ def test_hr_insights_and_every_page_renders():
     for page in ("home", "assistant", "approvals", "insights", "audit", "usage", "requests", "leave"):
         _goto(at, page)
         assert not at.exception, (page, at.exception)
+        _no_stray_output(at)
     _goto(at, "insights")
     assert "Engineering / Platform" in _text(at)
