@@ -1,7 +1,7 @@
 # HR Copilot: a governed, agentic HR operations assistant
 
 **Author:** Hasaan Wahid · **Submission:** Buggcy AI Engineer technical assessment
-**Live demo:** _<Streamlit URL - added after deployment>_ · **Stack:** Python 3.12, FastAPI, Streamlit, SQLite, Google Gemini (free tier; Claude and Bedrock supported)
+**Live demo:** https://hr-copilot-ztg86uxlfxdxmfyv4w2rj8.streamlit.app · **Stack:** Python 3.12, FastAPI, Streamlit, SQLite, Google Gemini (free tier; Claude and Bedrock supported)
 
 ![CI](https://github.com/MuhammadHasaanWahid/hr-copilot/actions/workflows/ci.yml/badge.svg)
 
