@@ -1,188 +1,114 @@
-# HR Copilot: a governed, agentic HR operations assistant
+# HR Copilot
 
-**Author:** Hasaan Wahid · **Submission:** Buggcy AI Engineer technical assessment
-**Live demo:** https://hr-copilot-ztg86uxlfxdxmfyv4w2rj8.streamlit.app · **Stack:** Python 3.12, FastAPI, Streamlit, SQLite, Google Gemini (free tier; Claude and Bedrock supported)
+**An HR portal with a built-in AI assistant: employees ask and request, managers and HR approve, and the AI checks the rules.**
+
+**Author:** Hasaan Wahid · Buggcy AI Engineer assessment
+**Live demo:** https://hr-copilot-ztg86uxlfxdxmfyv4w2rj8.streamlit.app
 
 ![CI](https://github.com/MuhammadHasaanWahid/hr-copilot/actions/workflows/ci.yml/badge.svg)
 
-HR Copilot is an **HR self-service and approvals portal with an AI assistant built in**. It is used by everyone in the company, and each role sees a different portal:
-
-| Role | What they do in HR Copilot |
-|---|---|
-| **Employee** | See their leave balance and attendance; ask the assistant about leave, rules and approvals; **submit requests** (leave, attendance correction, personal details, employment letter, anything else) and track them |
-| **Manager** | **Approve or reject their team's leave**, with an automatic policy check and team-coverage plan next to each request |
-| **HR Business Partner** | **Review all other employee requests** (and step in on leave); see workforce insights (absence patterns, data errors) |
-| **HR Administrator** | Everything HR can do, plus approving system fixes, the audit log and usage/value reporting |
-
-The assistant is **not an FAQ chatbot**. It investigates across five HR systems, lets deterministic engines make every policy and analytical call, explains the result with cited policy clauses, and **prepares** requests. **Only people approve or reject**, nobody can approve their own request, and every answer is automatically checked for invented facts.
-
-> **Core idea: the AI plans and explains; code decides and enforces; people approve.**
-
-**Request workflow**
-
-```
-Employee (form or assistant draft) → submits → Reviewer: leave → manager · other requests → HR · system fixes → HR admin
-                                                    ↓ approve / reject with comment (policy check shown)
-                                     change applied automatically + audit log · employee sees the decision
-```
-
 ---
 
-## 1. The problem and the four scenarios
+## What it does
 
-The brief's example requests can only be answered correctly by joining several systems and applying policy. That is where HR spends manual effort, and where a plain chatbot confidently hallucinates.
+In a big company, HR information lives in many separate systems: employee records, leave, approvals, projects and attendance. Answering a simple question like *"Can I take two weeks off?"* means checking all of them plus the policy. HR Copilot does that work.
 
-| Scenario (from the brief) | What it really needs | How HR Copilot solves it |
-|---|---|---|
-| **Employee:** two weeks off next month, project deadline, which approvals? | Balance + notice rules + approval chain + project deadlines + critical roles + team coverage | Policy engine checks 7 rules with clause IDs and finds the closest compliant dates |
-| **Manager:** three people requested the same week before a critical delivery | Constraint optimisation: coverage ≥ 60%, critical-role protection, fair priority, alternatives | Exhaustive search over approve/decline plans, then alternative dates |
-| **HR:** absences increasing; meaningful patterns? | Statistics, privacy (k-anonymity), data-quality handling | z-tests per department/team, Monday/Friday skew, link to project crunch, bad data excluded |
-| **Employee:** changed department, approval still goes to the old manager | Cross-system reconciliation, root cause, a governed fix | HRIS vs workflow vs leave check, root cause, high-risk fix proposal for an HR admin |
+| Who | What they can do |
+|---|---|
+| **Employee** | See leave balance and attendance · ask the assistant · submit requests (leave, attendance correction, personal details, employment letter, other) · track them |
+| **Manager** | Approve or reject the team's leave, with a policy check and a team-coverage plan next to each request |
+| **HR** | Review all other requests · see workforce insights (absence patterns, data errors) |
+| **HR Admin** | Everything HR can do · approve system fixes · audit log · usage and value report |
 
-## 2. Try it
+**How a request moves:**
 
-**Live:** open the demo link above, choose a demo account and **Sign in**. Every visitor gets a **private sandbox** of synthetic data. Switch accounts from the user menu (top right) within the same browser tab to see one request travel from employee to reviewer.
+```
+Employee submits  →  right reviewer gets it  →  approve / reject with a comment  →  change applied + logged
+                     (leave → manager, other → HR, system fix → HR admin)
+```
 
-**Locally:**
+## Key ideas
+
+- **The AI explains; code decides; people approve.** Rules, numbers and calculations come from tested code, not from the AI's guesses. The AI can prepare a request, but **only a person can approve it**, and **nobody can approve their own request**.
+- **Every answer is checked.** Numbers, dates and names in an answer must match the HR records, and the assistant can't say "done" unless something really happened. Answers that pass show **"Verified against HR records"**.
+- **Each role sees only what it's allowed to.** An employee can't see a colleague's data, and only HR admins see salaries. This is enforced in code, so a tricky message to the AI can't get around it.
+- **It spots tricks.** One demo leave request hides a message aimed at the AI ("ignore all previous instructions…"). The system flags it to the manager and ignores it.
+- **It keeps working.** If the AI service is down or out of free quota, a built-in rule-based assistant answers instead.
+- **Everything is recorded** in a tamper-proof audit log.
+
+## Try the demo (5 minutes)
+
+Open the live demo, pick an account and click **Sign in**. Use the **user menu (top right)** to switch accounts in the same tab.
+
+1. **Ayesha (employee):** ask *"Can I take two weeks off next month?"* She sees her balance, the notice rule she misses by one day, her project deadline problem, and who must approve.
+2. **Omar (manager):** open **Approvals**. Three people want the same week off. The page suggests approving two and moving Kenji's dates, and warns about the hidden instruction.
+3. **Sana (HR):** open **Insights**. It shows a rise in absences in one team during a busy release, a Monday/Friday pattern in Support, and data errors.
+4. **Bilal (employee):** his approvals go to his old manager. Click **"Ask HR to fix this"**.
+5. **Daniel (HR admin):** **Approvals → Approve** the fix. Bilal's requests now appear in Omar's inbox.
+
+All people and data are fictional. Each visitor gets a private copy, so nothing you do affects anyone else.
+
+## Run it yourself
 
 ```bash
 python -m pip install -r requirements.txt
-copy .env.example .env             # then put a free GEMINI_API_KEY in .env (optional)
-python -m streamlit run frontend/streamlit_app.py          # UI: http://localhost:8501
-python -m uvicorn app.main:app --port 8000                 # optional REST API: http://localhost:8000/docs
+copy .env.example .env                              # add a free GEMINI_API_KEY (optional)
+python -m streamlit run frontend/streamlit_app.py   # opens http://localhost:8501
 ```
 
-Without an API key everything still works: the deterministic **offline planner** answers through the same tools and governance.
+Without an API key it still works, using the built-in rule-based assistant.
+Optional REST API: `python -m uvicorn app.main:app --port 8000` (docs at `/docs`).
 
-**5-minute demo script**
+## How it's built
 
-1. **Ayesha (employee)**, scenario 1. On **Assistant**, ask *"Can I take two weeks off next month?"*:
-   - The notice period fails by one day, so it re-checks the closest compliant start date.
-   - She is backend lead on a critical release whose deadline is in her leave, so she needs a department-head exception.
-   - It shows team coverage and the approvers.
-   - Then, on **My requests → Request leave**, the form runs the same policy check live before she submits.
-2. **Omar (manager)**, scenario 2. **Approvals** shows the three overlapping requests, each with its policy check:
-   - A suggested team plan: approve Lucas and Fatima; offer Kenji, the tech lead, dates after the deadline.
-   - A **warning** that one leave reason contains a hidden instruction aimed at the AI.
-   - Omar approves or rejects with a comment, and the balance updates automatically.
-3. **Sana (HR business partner)**, scenario 3. **Insights** shows:
-   - A 3.75× absence spike in the Platform team during its release crunch.
-   - A Monday/Friday skew in Support.
-   - The data-quality issues it excluded, and the approval-routing errors.
-
-   Groups under 5 people are hidden. Ask the assistant for a colleague's salary: it's refused, because HR partners can't see pay.
-4. **Bilal (moved department)**, scenario 4. The assistant finds the root cause (the approval route was synced before his move) and the stuck request, and raises a **high-risk fix**. Bilal **cannot approve it himself**.
-5. **Daniel (HR administrator)**. **Approvals → Approve** the fix: the route is corrected and Bilal's request moves to Omar's inbox. Then check the **Audit log** (tamper check passed) and **Usage & value**.
-
-## 3. Architecture
-
-```mermaid
-flowchart LR
-    U[Streamlit UI<br/>thin client] -->|JWT| S[Service layer / FastAPI<br/>auth · rate limits · sessions]
-    S --> O[Orchestrator<br/>agent loop · guards · budgets]
-    O -->|plan + explain| L[Gemini free tier<br/>model fallback chain<br/>or Claude / Bedrock]
-    O -.->|outage / quota / budget| F[Offline planner]
-    L -->|tool calls| G
-    F -->|tool calls| G
-    subgraph Core [Trusted core - deterministic, tested]
-      G[Tool gateway<br/>validate · authorise · scope · redact · risk tier · audit]
-      G --> PE[Policy engine<br/>rules as code + clause IDs]
-      G --> AN[Analytics<br/>conflict optimiser · absence stats · consistency]
-      G --> AC[Action service<br/>proposals · approvals · re-validation]
-    end
-    PE & AN & AC --> C[System connectors] --> SYS[(HRIS · Leave · Workflow · Projects · Attendance)]
-    G & AC & O --> DB[(SQLite: audit chain · proposals · sessions · metrics)]
+```
+Streamlit UI  →  Service / API (login, limits)  →  AI assistant (Gemini; Claude optional)
+                                                      ↓ every action goes through
+                                     Tool gateway: permission check · hide private data · risk level · audit
+                                                      ↓
+                        Policy engine · Analytics · Request workflow  →  5 simulated HR systems (SQLite)
 ```
 
-**One turn, end to end**
-1. Login issues a signed JWT. The role and direct reports are resolved from **HRIS**, never from the client or the model.
-2. Rate limit and token budgets are checked.
-3. The LLM runs a function-calling loop with automatic execution **disabled**, so every call is executed by our gateway. With Gemini, a model that hits its free-tier quota is skipped and the next model in the chain is used.
-4. **Every tool call passes the gateway:**
-   - Pydantic validation (extra fields forbidden)
-   - Permission check
-   - Data scope (self / direct reports / organisation)
-   - Field redaction (salary)
-   - Risk tier
-   - Audit entry
-5. Writes become **proposals**. A human confirms (low risk) or a different, authorised human approves (high risk). Proposals are re-validated against live state and committed atomically.
-6. **Guards** check the answer:
-   - Numbers, dates and names must appear in this turn's tool results.
-   - "Submitted / approved / fixed" is only allowed if an action executed.
-   - Policy clause IDs must exist.
-
-   On failure the model gets one automatic correction round; anything still unsupported is flagged to the user.
-7. Metrics, the audit log and the session are persisted.
-
-| Path | Responsibility |
+| Part | Technology |
 |---|---|
-| `frontend/streamlit_app.py`, `frontend/client.py` | Streamlit UI; client talks to the service in-process (live demo) or over HTTP (`API_URL`) |
-| `app/main.py`, `app/service.py`, `app/auth.py` | REST API, service layer used by every frontend, JWT auth |
-| `app/agent/` | Gemini and Claude planners (manual function-calling loops, circuit breaker, quota fallback), offline planner, guards, orchestrator, prompts |
-| `app/tools.py`, `app/security.py`, `app/actions.py` | Tool catalogue + gateway, roles/scopes/redaction/untrusted-text spotlighting, approvals |
-| `app/policy/`, `app/analytics.py` | Policy-as-code engine + clause KB; conflict optimiser, absence statistics, consistency checker |
-| `app/systems.py`, `app/seed.py` | Connectors to 5 simulated systems; deterministic synthetic organisation with injected defects |
-| `app/audit.py`, `app/metrics.py`, `app/limits.py`, `app/sessions.py` | Hash-chained audit, value/safety telemetry, rate limit + budgets, sessions |
-| `evals/`, `scripts/`, `tests/` | Evaluation set + runner, scale test, Gemini setup check, 52 automated tests |
+| Interface | Streamlit (thin client: no business logic) |
+| Backend | Python 3.12, FastAPI, Pydantic |
+| AI | Google Gemini free tier with automatic fallback between models; Claude and Amazon Bedrock supported |
+| Data | SQLite (simulated HR systems + requests, audit, sessions) |
+| Login | Signed tokens (JWT), the same kind real company sign-in uses |
+| Quality | pytest, evaluation set, ruff, bandit, pip-audit, GitHub Actions CI |
 
-## 4. Key decisions (full log: [docs/DECISIONS.md](docs/DECISIONS.md))
+## Proof it works
 
-1. **LLM plans; engines decide.** RAG plus the model "reasoning" about eligibility was rejected: untestable and prone to confident errors.
-2. **Security lives in the gateway, never the prompt.** A seeded prompt injection proves it: the model may be fooled, but it has no tool that approves anything.
-3. **Risk tiers + an autonomy dial** (`advisory`, `assisted`, `autonomous`) resolve the leadership disagreement. High-risk actions **never** auto-execute and need an approver who is not the requester.
-4. **Gemini free tier for the public demo; a paid, no-training provider for real data.** The demo uses Google Gemini at zero cost, with a fallback chain across free models. Google may use free-tier prompts to improve its products, which is acceptable only because all demo data is synthetic. Real HR data needs a paid Gemini or Vertex AI project, or Claude via the Anthropic API or Bedrock; both are one environment variable away. OpenRouter was rejected: it adds a data processor, platform fees, and loses provider-specific features.
-5. **Streamlit as a thin client.** It's fast to build and easy to host live. It holds no logic or authority, so a React frontend could replace it with no backend change.
-6. **SQLite with a clean persistence boundary.** Zero setup; Postgres is a connection-string change.
-7. **Hallucination guards + evals** turn "reliable" into numbers.
-8. **Graceful degradation:** outage, open circuit breaker or budget cap all fall back to the offline planner.
+| Check | Result |
+|---|---|
+| Automated tests | **57 passing**: rules, permissions, request workflow, login, AI loops, full UI journeys |
+| Test questions with real Gemini (29 cases, incl. hacking attempts) | **28/29 passed** in the latest full run · **0 data leaks · 0 unapproved actions** ([details](docs/EVALS.md)) |
+| Same questions, built-in assistant | **26/26 passed** |
+| Scale test (50,000 employees) | Personal checks ≤ 2 ms · company-wide absence analysis ~0.8 s ([details](docs/SCALE.md)) |
+| Security scans | Clean |
 
-## 5. Evidence
+## Main decisions
 
-| What | Result | Details |
-|---|---|---|
-| Automated tests | **52 passed** (engines, request workflow and reviewer rules, governance invariants, JWT, persistence, guards, Gemini and Claude loops, quota fallback, headless UI journeys) | `python -m pytest -q` |
-| Offline eval set | **26/26 passed, 26/26 answers fully verified, 0 leaks, 0 unapproved actions** | [docs/EVALS.md](docs/EVALS.md) |
-| Live eval set (Gemini) | _see docs/EVALS.md_ | `python evals/run_evals.py --mode live --pause 20` |
-| Scale (50,057 employees, 130k absence records) | per-person tools ≤ 2 ms; org-wide absence analytics ~0.8 s | [docs/SCALE.md](docs/SCALE.md) |
-| Security scans | ruff (incl. bandit rules), bandit, pip-audit: **clean** | CI pipeline |
+- **Rules in code, not in the AI**: always correct, testable and explainable.
+- **Gemini free tier for the demo**: costs nothing. Google may use free-tier messages to improve its products, which is fine here only because all data is fake. Real HR data needs a paid plan (Gemini on Vertex AI, or Claude) under a data agreement.
+- **Not OpenRouter**: it adds another company handling employee data, plus extra fees.
+- **Streamlit**: quick to build and free to host. It holds no logic, so it can be replaced by a React front end later.
+- **SQLite**: no setup needed; switching to Postgres is a configuration change.
 
-## 6. Business value
+Full reasoning: [docs/DECISIONS.md](docs/DECISIONS.md)
 
-The **Value** tab tracks:
-- Requests by category, and outcomes.
-- AI spend and cost per request; latency.
-- Unauthorised requests blocked, and guard catches.
-- **Estimated manual effort avoided**, based on explicit, editable assumptions in `app/config.py`.
+## Limitations (honest list)
 
-A pilot plan to replace the assumptions with real numbers is in [docs/DECISIONS.md](docs/DECISIONS.md#adr-14-business-case-and-pilot). Running cost is mostly LLM tokens, visible per request and capped by daily and per-session budgets.
+- HR systems and company login are **simulated**; real ones would plug into the same interfaces.
+- The demo uses one country's simplified leave policy.
+- The live demo keeps data in memory, so it resets when the session ends.
+- Answer checks catch invented facts, but not every wrong conclusion. The test set covers the rest.
 
-## 7. Assumptions
+## Path to production
 
-- All data is synthetic and generated relative to the seed date, so the scenarios always line up.
-- Policy is a fictional handbook ([app/policy/handbook.md](app/policy/handbook.md)) with one global calendar.
-- Login is a demo JWT issuer standing in for company SSO. Production would verify OIDC tokens; nothing downstream changes.
+Real company login (SSO) · connectors to real HR systems (e.g. Workday, SAP) · Postgres · a paid AI plan with a data agreement and an EU region · notifications in Teams or Slack · regular security testing. AI used in hiring and employment is "high-risk" under the EU AI Act, with obligations from **2 December 2027**. The design already supports human approval, logging and transparency.
 
-## 8. Limitations
+## More docs
 
-- **Simulated integrations and demo login.** Real HRIS/workflow connectors and SSO are roadmap items.
-- **SQLite, single process.** Rate limits and budgets are in-memory per process. On Streamlit Cloud each visitor's sandbox is in memory and resets when the session ends.
-- **Simplified policy:** one country, no part-time pro-rating or half days. Leave spanning two years is charged to the start year.
-- **Analytics:** current team membership is used for history. The z-tests assume independent absences. Fine for triage, not formal reporting.
-- **Guards are heuristic:** they catch invented figures, dates and names, but not a wrong conclusion drawn from correct numbers. Evals cover that.
-- **Offline planner** is keyword-based and covers the demo intents. Open-ended conversation needs Claude.
-
-## 9. Path to production
-
-The full list, with security and privacy detail, is in [docs/SECURITY.md](docs/SECURITY.md), [docs/PRIVACY.md](docs/PRIVACY.md) and [docs/RUNBOOK.md](docs/RUNBOOK.md):
-1. OIDC SSO.
-2. Real connectors with idempotency keys.
-3. Postgres with row-level security, and Redis for limits.
-4. A paid, no-training model endpoint (Vertex AI Gemini, or Claude via Bedrock) with a DPA, zero data retention and an EU region.
-5. Event-driven proactive checks, e.g. a reporting-line change triggering a routing check.
-6. Teams/Slack approvals.
-7. Eval gates in CI on every prompt or model change.
-8. A penetration test and DPIA. EU AI Act high-risk obligations for employment AI apply from **2 December 2027**.
-
-## 10. Deploy
-
-See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): push to GitHub, then deploy on Streamlit Community Cloud (sign in with GitHub) with the free Gemini key in Secrets.
+[Security](docs/SECURITY.md) · [Privacy](docs/PRIVACY.md) · [Deployment](docs/DEPLOYMENT.md) · [Runbook](docs/RUNBOOK.md) · [Evaluations](docs/EVALS.md) · [Scale test](docs/SCALE.md) · [Decisions](docs/DECISIONS.md)
