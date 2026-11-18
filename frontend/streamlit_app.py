@@ -13,7 +13,7 @@ import os
 import re
 import sys
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 import streamlit as st
@@ -55,7 +55,7 @@ TOOL_STATUS = {"ok": "✓", "denied": "access denied", "proposed": "draft create
 st.markdown("""
 <style>
   #MainMenu, footer {visibility: hidden;}
-  .block-container {padding-top: 1.4rem; max-width: 1180px;}
+  .block-container {padding-top: 4.2rem; max-width: 1180px;}
   [data-testid="stMetric"] {background: #ffffff; border: 1px solid #e6e8ec; border-radius: 12px; padding: 14px 18px;}
   [data-testid="stMetricLabel"] p {color: #52514e; font-weight: 500;}
   div[data-testid="stVerticalBlockBorderWrapper"] {border-radius: 12px;}
@@ -175,9 +175,7 @@ def header() -> None:
 # ============================================================================== pages
 def page_home() -> None:
     u = ss.user
-    hour = datetime.now().hour
-    greet = "Good morning" if hour < 12 else "Good afternoon" if hour < 18 else "Good evening"
-    st.markdown(f"## {greet}, {u['name'].split()[0]}")
+    st.markdown(f"## Welcome back, {u['name'].split()[0]}")
     st.caption(f"{ROLE_LABEL.get(u['role'], u['role'])} · {u['department']}")
     ov = call(client.overview)
     mine = call(client.my_requests)

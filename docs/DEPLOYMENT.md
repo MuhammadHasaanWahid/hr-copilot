@@ -39,6 +39,8 @@ git push -u origin main
 4. **Deploy.** The first build takes a few minutes; dependencies come from the root `requirements.txt`.
 5. Put the app URL into the README's **Live demo** line and push again.
 
+> **After every push that changes backend code (`app/`), reboot the app** (Manage app → ⋮ → Reboot app). Streamlit Cloud hot-reloads the UI script on push but keeps already-imported backend modules in memory; a reboot loads the new backend.
+
 **How the live demo is isolated and protected**
 - **Isolation:** each visitor gets a private, in-memory sandbox of the synthetic organisation. One visitor's approvals never affect another's.
 - **Free quota:** the free Gemini tier costs nothing, but each model has a small daily quota. When a model is exhausted the next model in the chain is used; when all are exhausted the app keeps working through the offline planner and tells the user.
