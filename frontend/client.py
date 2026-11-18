@@ -42,9 +42,47 @@ class LocalClient:
             raise ClientError(str(exc), 429) from exc
         except KeyError as exc:
             raise ClientError(f"Not found: {exc}", 404) from exc
+        except ValueError as exc:  # policy violations and validation errors
+            msg = str(exc)
+            if hasattr(exc, "errors"):
+                msg = "; ".join(f"{'.'.join(map(str, e['loc']))}: {e['msg']}" for e in exc.errors())
+            raise ClientError(msg, 422) from exc
 
     def _p(self, token: str):
         return self.svc.principal(token)
+
+    def request_types(self) -> dict:
+        return self.svc.request_types()
+
+    def overview(self, token: str) -> dict:
+        return self._wrap(lambda: self.svc.overview(self._p(token)))
+
+    def my_requests(self, token: str) -> dict:
+        return self._wrap(lambda: self.svc.my_requests(self._p(token)))
+
+    def check_leave(self, token: str, payload: dict) -> dict:
+        return self._wrap(lambda: self.svc.check_leave(self._p(token), payload))
+
+    def submit_leave(self, token: str, payload: dict) -> dict:
+        return self._wrap(lambda: self.svc.submit_leave(self._p(token), payload))
+
+    def submit_case(self, token: str, payload: dict) -> dict:
+        return self._wrap(lambda: self.svc.submit_case(self._p(token), payload))
+
+    def inbox(self, token: str) -> dict:
+        return self._wrap(lambda: self.svc.inbox(self._p(token)))
+
+    def decide_leave(self, token: str, rid: int, approve: bool, comment: str | None = None) -> dict:
+        return self._wrap(lambda: self.svc.decide_leave(self._p(token), rid, approve, comment))
+
+    def team(self, token: str) -> dict:
+        return self._wrap(lambda: self.svc.team(self._p(token)))
+
+    def insights(self, token: str) -> dict:
+        return self._wrap(lambda: self.svc.insights(self._p(token)))
+
+    def raise_routing_fix(self, token: str, employee_id: str) -> dict:
+        return self._wrap(lambda: self.svc.raise_routing_fix(self._p(token), employee_id))
 
     def health(self) -> dict:
         return self.svc.health()
@@ -128,3 +166,36 @@ class HttpClient:
 
     def reset(self, token: str) -> None:
         self._req("POST", "/api/reset", token)
+
+    def request_types(self) -> dict:
+        return self._req("GET", "/api/request-types")
+
+    def overview(self, token: str) -> dict:
+        return self._req("GET", "/api/me/overview", token)
+
+    def my_requests(self, token: str) -> dict:
+        return self._req("GET", "/api/requests", token)
+
+    def check_leave(self, token: str, payload: dict) -> dict:
+        return self._req("POST", "/api/requests/leave/check", token, json=payload)
+
+    def submit_leave(self, token: str, payload: dict) -> dict:
+        return self._req("POST", "/api/requests/leave", token, json=payload)
+
+    def submit_case(self, token: str, payload: dict) -> dict:
+        return self._req("POST", "/api/requests/case", token, json=payload)
+
+    def inbox(self, token: str) -> dict:
+        return self._req("GET", "/api/inbox", token)
+
+    def decide_leave(self, token: str, rid: int, approve: bool, comment: str | None = None) -> dict:
+        return self._req("POST", f"/api/inbox/leave/{rid}/decide", token, json={"approve": approve, "comment": comment})
+
+    def team(self, token: str) -> dict:
+        return self._req("GET", "/api/team", token)
+
+    def insights(self, token: str) -> dict:
+        return self._req("GET", "/api/insights", token)
+
+    def raise_routing_fix(self, token: str, employee_id: str) -> dict:
+        return self._req("POST", f"/api/insights/routing-fix/{employee_id}", token)

@@ -132,6 +132,85 @@ def decide(pid: int, body: DecisionIn, p: Principal = Depends(current_principal)
         raise HTTPException(404, "Proposal not found") from None
 
 
+class LeaveBody(BaseModel):
+    start_date: str
+    end_date: str
+    leave_type: str = "annual"
+    reason: str = Field("", max_length=300)
+    handover_note: str | None = Field(None, max_length=1000)
+
+
+class CaseBody(BaseModel):
+    type: str
+    subject: str = Field(min_length=3, max_length=120)
+    details: str = Field("", max_length=1500)
+    day: str | None = None
+    new_location: str | None = Field(None, max_length=60)
+
+
+@app.exception_handler(ValueError)
+async def _bad_request(_, exc: ValueError):
+    return JSONResponse({"detail": str(exc)}, status_code=422)
+
+
+@app.get("/api/request-types")
+def request_types():
+    return service.request_types()
+
+
+@app.get("/api/me/overview")
+def overview(p: Principal = Depends(current_principal)):
+    return service.overview(p)
+
+
+@app.get("/api/requests")
+def my_requests(p: Principal = Depends(current_principal)):
+    return service.my_requests(p)
+
+
+@app.post("/api/requests/leave/check")
+def check_leave(body: LeaveBody, p: Principal = Depends(current_principal)):
+    return service.check_leave(p, body.model_dump())
+
+
+@app.post("/api/requests/leave")
+def submit_leave(body: LeaveBody, p: Principal = Depends(current_principal)):
+    return service.submit_leave(p, body.model_dump())
+
+
+@app.post("/api/requests/case")
+def submit_case(body: CaseBody, p: Principal = Depends(current_principal)):
+    return service.submit_case(p, body.model_dump(exclude_none=True))
+
+
+@app.get("/api/inbox")
+def inbox(p: Principal = Depends(current_principal)):
+    return service.inbox(p)
+
+
+@app.post("/api/inbox/leave/{rid}/decide")
+def decide_leave(rid: int, body: DecisionIn, p: Principal = Depends(current_principal)):
+    try:
+        return service.decide_leave(p, rid, body.approve, body.comment)
+    except KeyError:
+        raise HTTPException(404, "Request not found") from None
+
+
+@app.get("/api/team")
+def team(p: Principal = Depends(current_principal)):
+    return service.team(p)
+
+
+@app.get("/api/insights")
+def insights(p: Principal = Depends(current_principal)):
+    return service.insights(p)
+
+
+@app.post("/api/insights/routing-fix/{employee_id}")
+def routing_fix(employee_id: str, p: Principal = Depends(current_principal)):
+    return service.raise_routing_fix(p, employee_id)
+
+
 @app.get("/api/audit")
 def audit(p: Principal = Depends(current_principal)):
     return service.audit(p)

@@ -133,6 +133,8 @@ MANUAL_EFFORT_MINUTES = {
     "team_conflict_analysis": 45,
     "absence_analytics": 240,
     "routing_diagnosis": 35,
+    "hr_request": 10,
+    "request_tracking": 5,
     "policy_question": 10,
     "profile_lookup": 5,
     "other": 5,

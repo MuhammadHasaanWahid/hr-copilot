@@ -47,7 +47,7 @@ All settings are environment variables, from `.env` locally or Secrets on Stream
 | `API key rejected` | Rotate the key in `.env` / Secrets, restart. |
 | Audit chain invalid | Treat as a security incident: freeze the database file, compare with backups, investigate access. |
 | Suspected prompt-injection abuse | Search the audit for `tool.denied` / `proposal.decision_denied` by user; no write can bypass approvals. |
-| Costs higher than expected | Lower `HR_EFFORT`, `DAILY_TOKEN_BUDGET`, or set `DEMO_PASSCODE`; check cost per turn on the Value tab. |
+| Costs higher than expected | Lower `HR_EFFORT`, `DAILY_TOKEN_BUDGET`, or set `DEMO_PASSCODE`; check cost per conversation on the Usage & value page. |
 
 ## Key rotation
 

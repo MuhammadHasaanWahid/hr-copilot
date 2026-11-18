@@ -238,6 +238,11 @@ def open_database(path: str, today: date) -> tuple[Database, Scenario, date]:
         db.execute("INSERT OR REPLACE INTO app_meta VALUES ('seed_date', ?)", (today.isoformat(),))
         return db, sc, today
     db.script(APP_SCHEMA)
+    # Lightweight migration for databases created before decision fields existed.
+    cols = {r["name"] for r in db.query("PRAGMA table_info(leave_requests)")}
+    for col in ("decided_by", "decided_at", "decision_comment"):
+        if col not in cols:
+            db.execute(f"ALTER TABLE leave_requests ADD COLUMN {col} TEXT")  # nosec B608 - fixed column names
     row = db.one("SELECT value FROM app_meta WHERE key='seed_date'")
     seeded = date.fromisoformat(row["value"]) if row else today
     return db, Scenario(seeded), seeded

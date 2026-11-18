@@ -65,6 +65,24 @@ class OfflineAgent:
         if personal and (_has(t, "routing", "previous manager", "old manager", "wrong manager") or (
                 "manager" in t and "approv" in t and _has(t, "chang", "still", "wrong", "previous"))):
             return self._routing(t, call)
+        if personal and _has(t, "my request", "status of my", "my leave request", "my application"):
+            return self._my_requests(call)
+        if personal and _has(t, "letter") and _has(t, "need", "request", "want", "get"):
+            r = call("submit_hr_request", {"type": "employment_letter", "subject": "Employment letter",
+                                           "details": text[:500]})
+            if r["status"] == "proposed":
+                return ("📝 I've prepared an **employment letter request**. Confirm it on the **My requests** page and "
+                        "HR will review it.")
+            return f"I couldn't prepare the request: {r.get('error') or r.get('reason')}"
+        if personal and _has(t, "attendance", "absent", "absence") and not _has(t, "pattern", "trend", "across",
+                                                                                   "department", "increase"):
+            r = call("get_attendance", {})
+            if r["status"] != "ok":
+                return self._denied(r)
+            d = r["data"]
+            days = ", ".join(a["day"] for a in d["absences"][:10]) or "none"
+            return (f"Since {d['period_start']} you have **{d['absence_days_last_90_days']} absence day(s)** recorded: "
+                    f"{days}. If one of these is wrong, raise an **attendance correction** on the My requests page.")
         if _has(t, "absence", "absent", "sick leave trend", "pattern"):
             return self._absences(t, call)
         if "team" in t and _has(t, "leave", "conflict", "requested", "time off", "vacation"):
@@ -123,6 +141,14 @@ class OfflineAgent:
         return out
 
     # -------------------------------------------------------------- intents
+    def _my_requests(self, call) -> str:
+        r = call("list_my_requests", {})
+        reqs = r.get("data", {}).get("requests", [])
+        if not reqs:
+            return "You have no requests yet. You can create one on the **My requests** page."
+        lines = [f"- **{x['type_label']}** · {x['title']} · *{x['status']}*" for x in reqs[:8]]
+        return "Here are your requests:\n\n" + "\n".join(lines)
+
     @staticmethod
     def _denied(r: dict) -> str:
         return f"🔒 I can't do that for you: {r.get('error', 'access denied')}"
@@ -201,7 +227,7 @@ class OfflineAgent:
         if r["status"] == "proposed":
             return (f"📝 I've prepared the request (**proposal #{r['proposal_id']}**): {r['preview']['summary']}. "
                     f"It will be routed to {r['preview']['will_be_routed_to']}.\n\n"
-                    "It is **not submitted yet** — confirm it in the **Actions** panel.")
+                    "It is **not submitted yet** — confirm it on the **My requests** page; your manager then reviews it.")
         if r["status"] == "executed":
             return f"✅ Submitted as request #{r['result']['request_id']}, routed to {r['result']['routed_to']}."
         if r["status"] == "blocked":
@@ -228,7 +254,7 @@ class OfflineAgent:
             if p["status"] == "proposed":
                 out.append(f"\n🛠️ I've raised **fix proposal #{p['proposal_id']}**: {p['preview']['summary']}. Because "
                            "this changes system configuration it needs approval by an **HR systems administrator** — "
-                           "I can't execute it myself. You'll see the status in the Actions panel.")
+                           "I can't execute it myself. You can track it on the My requests page.")
             else:
                 out.append(f"\nI couldn't raise a fix: {p.get('error') or p.get('reason')}")
         else:

@@ -26,7 +26,7 @@ from .audit import AuditLog
 from .config import Settings
 from .policy.engine import LeavePolicyEngine
 from .policy.knowledge import PolicyKnowledgeBase
-from .security import AuthorizationError, Principal, access_scope, redact, require, untrusted
+from .security import AuthorizationError, Principal, access_scope, looks_like_injection, redact, require, untrusted
 from .systems import Systems
 
 READ, LOW, HIGH = "read", "low", "high"
@@ -42,6 +42,7 @@ class Ctx:
     consistency: ConsistencyChecker
     kb: PolicyKnowledgeBase
     settings: Settings
+    requests: Any = None   # RequestService (typed loosely to avoid an import cycle)
 
 
 class _Args(BaseModel):
@@ -148,7 +149,10 @@ def t_requests(ctx: Ctx, a: RequestsArgs) -> dict:
     for r in rows:
         r["employee_name"] = _name(ctx, r["employee_id"])
         r["approver_name"] = _name(ctx, r["approver_id"])
-        r["employee_provided_reason__untrusted_text"] = untrusted(r.pop("reason"))
+        reason = r.pop("reason")
+        if looks_like_injection(reason):
+            r["possible_prompt_injection"] = True
+        r["employee_provided_reason__untrusted_text"] = untrusted(reason)
         r["handover_note__untrusted_text"] = untrusted(r.pop("handover_note"))
     return {"requests": rows}
 
@@ -257,12 +261,59 @@ def p_submit(ctx: Ctx, a: SubmitArgs) -> dict:
 
 
 def c_submit(ctx: Ctx, a: SubmitArgs, approver: Principal) -> dict:
-    p_submit(ctx, a)
-    route = ctx.s.workflow.route(ctx.principal.id)
-    n = ctx.engine.evaluate_leave(ctx.principal.id, a.leave_type, a.start_date, a.end_date)["working_days"]
-    rid = ctx.s.leave.create_request(ctx.principal.id, a.leave_type, a.start_date, a.end_date, n,
-                                     route["approver_id"], ctx.settings.today, a.reason, a.handover_note)
-    return {"request_id": rid, "status": "pending", "routed_to": _name(ctx, route["approver_id"])}
+    from .requests import LeaveIn
+    res = ctx.requests.submit_leave(ctx.principal, LeaveIn(**a.model_dump()))  # re-validates against live state
+    return {"request_id": res["request_id"], "status": "pending - awaiting manager review", "routed_to": res["reviewer"]}
+
+
+class HRRequestArgs(_Args):
+    type: Literal["attendance_correction", "personal_details", "employment_letter", "general"] = Field(
+        description="attendance_correction = an absence recorded on a day the user worked; personal_details = e.g. "
+                    "work location change; employment_letter = proof of employment; general = anything else for HR.")
+    subject: str = Field(min_length=3, max_length=120, description="Short title of the request.")
+    details: str = Field("", max_length=1500, description="What the user needs, in their words.")
+    day: date | None = Field(None, description="attendance_correction only: the day to correct (YYYY-MM-DD).")
+    new_location: str | None = Field(None, max_length=60, description="personal_details only: the new work location.")
+
+
+def p_hr_request(ctx: Ctx, a: HRRequestArgs) -> dict:
+    from .requests import CASE_TYPES
+    if a.type == "attendance_correction" and not a.day:
+        raise ValueError("Ask the user which date should be corrected.")
+    return {"summary": f"{CASE_TYPES[a.type]['label']}: {a.subject}", "will_be_reviewed_by": "HR",
+            "details": a.details}
+
+
+def c_hr_request(ctx: Ctx, a: HRRequestArgs, approver: Principal) -> dict:
+    from .requests import CaseIn
+    res = ctx.requests.submit_case(ctx.principal, CaseIn(**a.model_dump()))
+    return {"request_id": res["request_id"], "status": "pending - awaiting HR review"}
+
+
+class NoArgsMine(_Args):
+    pass
+
+
+def t_my_requests(ctx: Ctx, a: NoArgsMine) -> dict:
+    mine = ctx.requests.my_requests(ctx.principal)
+    slim = [{k: x.get(k) for k in ("type_label", "title", "status", "submitted_at", "reviewer", "decided_by",
+                                    "decision_comment")} for x in mine["requests"]]
+    return {"requests": slim, "drafts_awaiting_your_confirmation": [d["summary"] for d in mine["drafts"]]}
+
+
+class AttendanceArgs(_Args):
+    employee_id: str | None = Field(None, description="Omit for the current user. Managers may ask about direct reports.")
+
+
+def t_attendance(ctx: Ctx, a: AttendanceArgs) -> dict:
+    eid = _target(ctx, a.employee_id)
+    access_scope(ctx.principal, eid, "attendance")
+    since = (ctx.settings.today.toordinal() - 90)
+    start = date.fromordinal(since).isoformat()
+    rows = ctx.s.db.query("SELECT day, kind FROM att_absences WHERE employee_id=? AND day >= ? ORDER BY day DESC",
+                          (eid, start))
+    return {"employee_id": eid, "employee_name": _name(ctx, eid), "period_start": start,
+            "absence_days_last_90_days": len(rows), "absences": rows}
 
 
 class RoutingFixArgs(_Args):
@@ -326,6 +377,16 @@ TOOLS: list[ToolSpec] = [
              DiagnoseArgs, "routing.diagnose.self", READ, "routing_diagnosis", t_diagnose),
     ToolSpec("scan_data_consistency", "HR only: scan all employees for HRIS vs workflow routing mismatches.",
              NoArgs, "data_quality.scan", READ, "routing_diagnosis", t_scan),
+    ToolSpec("list_my_requests", "List the current user's requests (leave and HR requests) with their status, reviewer "
+             "and decision, plus drafts waiting for the user's confirmation.",
+             NoArgsMine, "request.submit.self", READ, "request_tracking", t_my_requests),
+    ToolSpec("get_attendance", "Absence days recorded in the attendance system in the last 90 days (self, or a "
+             "manager's direct report).", AttendanceArgs, "attendance.read.self", READ, "profile_lookup", t_attendance),
+    ToolSpec("submit_hr_request",
+             "Prepare an HR request for the CURRENT USER (attendance correction, personal details update, employment "
+             "letter, or anything else for HR). Only call when the user asks to raise / request / submit something. "
+             "Creates a draft the user confirms in 'My requests'; HR then reviews it. You cannot approve it.",
+             HRRequestArgs, "request.submit.self", LOW, "hr_request", p_hr_request, c_hr_request),
     ToolSpec("search_policy", "Search the HR policy handbook. Returns clauses with IDs to cite.",
              PolicyArgs, "policy.read", READ, "policy_question", t_policy),
     ToolSpec("submit_leave_request",
@@ -391,8 +452,8 @@ class ToolGateway:
                 return {"status": "executed", "result": result}
             if spec.risk == LOW:
                 p = self.actions.create(name, jargs, principal, LOW, preview["summary"], preview, "requester", None)
-                return {"status": "proposed", "proposal_id": p["id"], "awaiting": "the user's one-click confirmation "
-                        "in the Actions tab", "preview": preview}
+                return {"status": "proposed", "proposal_id": p["id"], "awaiting": "the user's confirmation on the "
+                        "'My requests' page; after that the assigned reviewer decides", "preview": preview}
             p = self.actions.create(name, jargs, principal, HIGH, preview["summary"], preview, "permission",
                                     spec.approval_permission)
             return {"status": "proposed", "proposal_id": p["id"],

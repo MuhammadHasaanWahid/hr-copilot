@@ -5,15 +5,26 @@
 
 ![CI](https://github.com/MuhammadHasaanWahid/hr-copilot/actions/workflows/ci.yml/badge.svg)
 
-HR Copilot is **not an FAQ chatbot**. An employee, manager or HR professional describes a messy, multi-part problem. An AI agent then:
-1. **Investigates across five HR systems.**
-2. Asks **deterministic engines** to make every policy and analytical call.
-3. **Explains** the result with cited policy clauses.
-4. **Prepares actions**, which a human confirms or approves according to risk.
+HR Copilot is an **HR self-service and approvals portal with an AI assistant built in**. It is used by everyone in the company, and each role sees a different portal:
 
-Every answer is then **automatically checked** for invented facts.
+| Role | What they do in HR Copilot |
+|---|---|
+| **Employee** | See their leave balance and attendance; ask the assistant about leave, rules and approvals; **submit requests** (leave, attendance correction, personal details, employment letter, anything else) and track them |
+| **Manager** | **Approve or reject their team's leave**, with an automatic policy check and team-coverage plan next to each request |
+| **HR Business Partner** | **Review all other employee requests** (and step in on leave); see workforce insights (absence patterns, data errors) |
+| **HR Administrator** | Everything HR can do, plus approving system fixes, the audit log and usage/value reporting |
 
-> **Core idea: the AI plans and explains; code decides and enforces.**
+The assistant is **not an FAQ chatbot**. It investigates across five HR systems, lets deterministic engines make every policy and analytical call, explains the result with cited policy clauses, and **prepares** requests. **Only people approve or reject**, nobody can approve their own request, and every answer is automatically checked for invented facts.
+
+> **Core idea: the AI plans and explains; code decides and enforces; people approve.**
+
+**Request workflow**
+
+```
+Employee (form or assistant draft) → submits → Reviewer: leave → manager · other requests → HR · system fixes → HR admin
+                                                    ↓ approve / reject with comment (policy check shown)
+                                     change applied automatically + audit log · employee sees the decision
+```
 
 ---
 
@@ -30,7 +41,7 @@ The brief's example requests can only be answered correctly by joining several s
 
 ## 2. Try it
 
-**Live:** open the demo link above and pick a persona in the sidebar. Every visitor gets a **private sandbox** of synthetic data.
+**Live:** open the demo link above, choose a demo account and **Sign in**. Every visitor gets a **private sandbox** of synthetic data. Switch accounts from the user menu (top right) within the same browser tab to see one request travel from employee to reviewer.
 
 **Locally:**
 
@@ -45,20 +56,23 @@ Without an API key everything still works: the deterministic **offline planner**
 
 **5-minute demo script**
 
-1. **Ayesha (employee)**, scenario 1:
-   - Notice period fails by one day, so it re-checks the closest compliant start date.
+1. **Ayesha (employee)**, scenario 1. On **Assistant**, ask *"Can I take two weeks off next month?"*:
+   - The notice period fails by one day, so it re-checks the closest compliant start date.
    - She is backend lead on a critical release whose deadline is in her leave, so she needs a department-head exception.
-   - Shows team coverage and the approvers.
-   - Then send *"Submit it, handover: …"*. This creates a proposal she confirms in **Actions**.
-2. **Omar (manager)**, scenario 2:
-   - Daily coverage, a recommended plan (approve Lucas and Fatima; offer Kenji, the tech lead, dates after the deadline) and the reasons.
-   - Flags a **prompt-injection attempt** hidden in an employee's leave reason. Nothing is approved.
-3. **Sana (HR business partner)**, scenario 3:
-   - Finds a 3.75× absence spike in the Platform team during its release crunch, and a Monday/Friday skew in Support.
-   - Lists the data-quality issues it excluded. Groups under 5 people are suppressed.
-   - Ask for a salary: it's redacted, because HRBPs can't see compensation.
-4. **Bilal (moved department)**, scenario 4: the root cause (workflow route synced before his move) and the stuck request. It raises a **high-risk fix** that Bilal **cannot approve himself**.
-5. **Daniel (HR systems admin)**: Actions → **Approve**. The route is fixed and the pending request reassigned atomically. Then check **Audit** (hash chain valid) and **Value**.
+   - It shows team coverage and the approvers.
+   - Then, on **My requests → Request leave**, the form runs the same policy check live before she submits.
+2. **Omar (manager)**, scenario 2. **Approvals** shows the three overlapping requests, each with its policy check:
+   - A suggested team plan: approve Lucas and Fatima; offer Kenji, the tech lead, dates after the deadline.
+   - A **warning** that one leave reason contains a hidden instruction aimed at the AI.
+   - Omar approves or rejects with a comment, and the balance updates automatically.
+3. **Sana (HR business partner)**, scenario 3. **Insights** shows:
+   - A 3.75× absence spike in the Platform team during its release crunch.
+   - A Monday/Friday skew in Support.
+   - The data-quality issues it excluded, and the approval-routing errors.
+
+   Groups under 5 people are hidden. Ask the assistant for a colleague's salary: it's refused, because HR partners can't see pay.
+4. **Bilal (moved department)**, scenario 4. The assistant finds the root cause (the approval route was synced before his move) and the stuck request, and raises a **high-risk fix**. Bilal **cannot approve it himself**.
+5. **Daniel (HR administrator)**. **Approvals → Approve** the fix: the route is corrected and Bilal's request moves to Omar's inbox. Then check the **Audit log** (tamper check passed) and **Usage & value**.
 
 ## 3. Architecture
 
@@ -109,7 +123,7 @@ flowchart LR
 | `app/policy/`, `app/analytics.py` | Policy-as-code engine + clause KB; conflict optimiser, absence statistics, consistency checker |
 | `app/systems.py`, `app/seed.py` | Connectors to 5 simulated systems; deterministic synthetic organisation with injected defects |
 | `app/audit.py`, `app/metrics.py`, `app/limits.py`, `app/sessions.py` | Hash-chained audit, value/safety telemetry, rate limit + budgets, sessions |
-| `evals/`, `scripts/`, `tests/` | Evaluation set + runner, scale test, Gemini setup check, 41 automated tests |
+| `evals/`, `scripts/`, `tests/` | Evaluation set + runner, scale test, Gemini setup check, 52 automated tests |
 
 ## 4. Key decisions (full log: [docs/DECISIONS.md](docs/DECISIONS.md))
 
@@ -126,7 +140,7 @@ flowchart LR
 
 | What | Result | Details |
 |---|---|---|
-| Automated tests | **41 passed** (engines, governance invariants, JWT, persistence, guards, Gemini and Claude loops, quota fallback, headless UI) | `python -m pytest -q` |
+| Automated tests | **52 passed** (engines, request workflow and reviewer rules, governance invariants, JWT, persistence, guards, Gemini and Claude loops, quota fallback, headless UI journeys) | `python -m pytest -q` |
 | Offline eval set | **26/26 passed, 26/26 answers fully verified, 0 leaks, 0 unapproved actions** | [docs/EVALS.md](docs/EVALS.md) |
 | Live eval set (Gemini) | _see docs/EVALS.md_ | `python evals/run_evals.py --mode live --pause 20` |
 | Scale (50,057 employees, 130k absence records) | per-person tools ≤ 2 ms; org-wide absence analytics ~0.8 s | [docs/SCALE.md](docs/SCALE.md) |

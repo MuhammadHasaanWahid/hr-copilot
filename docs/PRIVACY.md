@@ -28,7 +28,7 @@ All data in this repository is **synthetic**. This document describes how the de
 - **Data minimisation:** redaction before the model sees anything; aggregate-only analytics.
 - **Purpose limitation:** tools are scoped to HR operations; there is no general data-export tool.
 - **No solely automated decisions** (GDPR Art. 22, policy DP-1.2): the assistant recommends; humans approve.
-- **Transparency:** reasoning trace and policy citations on every answer.
+- **Transparency:** every answer lists the sources it checked and cites policy clauses; reviewers see the policy check behind each request.
 - **Accountability:** a tamper-evident audit of every read, denial, proposal and decision.
 - **Retention:**
   - Sessions expire after 8 hours of inactivity.

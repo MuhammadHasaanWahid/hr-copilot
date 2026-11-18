@@ -13,6 +13,7 @@ import json
 import os
 import sys
 import time
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -39,11 +40,13 @@ def run_case(case: dict, mode: str) -> dict:
     svc = HRCopilotService(settings, db_path=":memory:")
     c = svc.c
     alt_s, alt_e = after_deadline(c, 3, 14)
+    d = date.fromisoformat(alt_s)
+    fmt = {"alt_start": alt_s, "alt_end": alt_e, "alt_start_dm": f"{d.day} {d:%B}", "alt_start_md": f"{d:%B} {d.day}"}
     p = svc.principal(svc.login(case["persona"])["token"])
     tools, results = set(), []
     t0 = time.perf_counter()
     for turn in case["turns"]:
-        msg = turn.format(alt_start=alt_s, alt_end=alt_e)
+        msg = turn.format(**fmt)
         r = svc.chat(p, "eval", msg)
         results.append(r)
         tools |= {t["tool"] for t in r["trace"]}
@@ -55,7 +58,7 @@ def run_case(case: dict, mode: str) -> dict:
             failures.append(f"tool not called: {t}")
     for item in case.get("include", []):
         item = _expand(item, c)
-        options = [o.format(alt_start=alt_s, alt_end=alt_e) for o in (item if isinstance(item, list) else [item])]
+        options = [o.format(**fmt) for o in (item if isinstance(item, list) else [item])]
         if not any(_contains(reply, o) for o in options):
             failures.append(f"missing any of {options[:4]}")
     for item in case.get("exclude", []):
@@ -123,7 +126,6 @@ def main() -> int:
         rows.append(r)
         print(f"{'PASS' if r['passed'] else 'FAIL'}  {r['id']:<36} {r['mode']:<20} {r['seconds']:>5}s  ${r['cost_usd']:.3f}"
               + ("" if r["passed"] else "  -> " + "; ".join(r["failures"])))
-    from datetime import date
     summary = {"date": date.today().isoformat(), "total": len(rows), "passed": sum(r["passed"] for r in rows),
                "verified": sum(r["verified"] for r in rows),
                "leaks": sum(any(f.startswith("leaked") for f in r["failures"]) for r in rows),

@@ -83,9 +83,60 @@ class HRCopilotService:
     def decide(self, p: Principal, proposal_id: int, approve: bool, comment: str | None = None) -> dict:
         return self.c.actions.decide(p, proposal_id, approve, comment)
 
+    # ----------------------------------------------------------- requests
+    def request_types(self) -> dict:
+        from .requests import CASE_TYPES
+        return {k: {"label": v["label"], "help": v["help"]} for k, v in CASE_TYPES.items() if k != "request_routing_fix"}
+
+    def my_requests(self, p: Principal) -> dict:
+        return self.c.requests.my_requests(p)
+
+    def check_leave(self, p: Principal, payload: dict) -> dict:
+        from .requests import LeaveIn
+        return self.c.requests.check_leave(p, LeaveIn(**payload))
+
+    def submit_leave(self, p: Principal, payload: dict) -> dict:
+        from .requests import LeaveIn
+        return self.c.requests.submit_leave(p, LeaveIn(**payload))
+
+    def submit_case(self, p: Principal, payload: dict) -> dict:
+        from .requests import CaseIn
+        return self.c.requests.submit_case(p, CaseIn(**payload))
+
+    def inbox(self, p: Principal) -> dict:
+        return self.c.requests.inbox(p)
+
+    def decide_leave(self, p: Principal, request_id: int, approve: bool, comment: str | None = None) -> dict:
+        return self.c.requests.decide_leave(p, request_id, approve, comment)
+
+    def overview(self, p: Principal) -> dict:
+        return self.c.requests.overview(p)
+
+    def team(self, p: Principal) -> dict:
+        out = self.c.requests.team(p)
+        plan = self.c.gateway.call(p, "analyze_team_leave_conflicts", {})
+        out["coverage_plan"] = plan.get("data") if plan["status"] == "ok" else None
+        return out
+
+    def insights(self, p: Principal) -> dict:
+        """HR dashboard: absence analytics + data consistency, through the gateway (authorised and audited)."""
+        a = self.c.gateway.call(p, "analyze_absence_patterns", {})
+        s = self.c.gateway.call(p, "scan_data_consistency", {})
+        if a["status"] != "ok":
+            raise AuthorizationError(a.get("error", "Not authorised"))
+        return {"absences": a["data"], "consistency": s.get("data")}
+
+    def raise_routing_fix(self, p: Principal, employee_id: str) -> dict:
+        r = self.c.gateway.call(p, "request_routing_fix", {"employee_id": employee_id})
+        if r["status"] == "denied":
+            raise AuthorizationError(r["error"])
+        if r["status"] == "error":
+            raise ValueError(r["error"])
+        return r
+
     def audit(self, p: Principal, limit: int = 200) -> dict:
         # HR admins see the full log; everyone else only their own events / events on their behalf.
-        rows = self.c.audit.entries(limit=limit) if p.can("routing.fix.approve") else self.c.audit.entries(p.id, limit)
+        rows = self.c.audit.entries(limit=limit) if p.can("audit.read.all") else self.c.audit.entries(p.id, limit)
         return {"chain_valid": self.c.audit.verify(), "total_entries": self.c.audit.count(), "entries": rows[::-1]}
 
     def metrics(self) -> dict:

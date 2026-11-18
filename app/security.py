@@ -11,30 +11,33 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+_SELF = {"profile.read.self", "leave.read.self", "leave.submit.self", "policy.read", "project.read.self",
+         "routing.diagnose.self", "routing.request_fix.self", "request.submit.self", "attendance.read.self"}
+_TEAM = {"profile.read.team", "leave.read.team", "leave.analyze.team", "project.read.team", "attendance.read.team",
+         "leave.review.team"}
+_HR = {"profile.read.all", "leave.read.all", "leave.analyze.team", "project.read.all", "attendance.read.all",
+       "analytics.org", "routing.diagnose.all", "routing.request_fix.all", "data_quality.scan",
+       "hr.review",          # review employee requests (attendance, details, letters, other) + override leave
+       "leave.review.all"}
+
 ROLE_PERMISSIONS: dict[str, set[str]] = {
-    "EMPLOYEE": {
-        "profile.read.self", "leave.read.self", "leave.submit.self", "policy.read",
-        "project.read.self", "routing.diagnose.self", "routing.request_fix.self",
-    },
-    "MANAGER": {
-        "profile.read.self", "leave.read.self", "leave.submit.self", "policy.read",
-        "project.read.self", "routing.diagnose.self", "routing.request_fix.self",
-        "profile.read.team", "leave.read.team", "leave.analyze.team", "project.read.team",
-    },
-    "HR_PARTNER": {
-        "profile.read.self", "leave.read.self", "leave.submit.self", "policy.read",
-        "project.read.self", "routing.diagnose.self", "routing.request_fix.self",
-        "profile.read.all", "leave.read.all", "leave.analyze.team", "project.read.all",
-        "analytics.org", "routing.diagnose.all", "routing.request_fix.all", "data_quality.scan",
-    },
-    "HR_ADMIN": {
-        "profile.read.self", "leave.read.self", "leave.submit.self", "policy.read",
-        "project.read.self", "routing.diagnose.self", "routing.request_fix.self",
-        "profile.read.all", "leave.read.all", "leave.analyze.team", "project.read.all",
-        "analytics.org", "routing.diagnose.all", "routing.request_fix.all", "data_quality.scan",
-        "compensation.read", "routing.fix.approve",
-    },
+    "EMPLOYEE": set(_SELF),
+    "MANAGER": _SELF | _TEAM,
+    "HR_PARTNER": _SELF | _HR,
+    "HR_ADMIN": _SELF | _HR | {"compensation.read", "routing.fix.approve", "audit.read.all", "metrics.read"},
 }
+
+ROLE_LABELS = {"EMPLOYEE": "Employee", "MANAGER": "Manager", "HR_PARTNER": "HR Business Partner",
+               "HR_ADMIN": "HR Administrator"}
+
+_INJECTION = re.compile(
+    r"ignore (all |any )?(previous|prior|above)|disregard (all |the )?(previous|prior|above)|system prompt|"
+    r"you are now|approve (every|all)|developer mode|admin mode|override (the )?(rules|policy)", re.I)
+
+
+def looks_like_injection(text: str | None) -> bool:
+    """Deterministic flag for instruction-like text inside employee-typed data."""
+    return bool(text and _INJECTION.search(text))
 
 # Fields considered sensitive and only visible with an explicit permission.
 SENSITIVE_FIELDS = {"salary_annual": "compensation.read"}

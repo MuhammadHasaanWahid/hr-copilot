@@ -16,7 +16,7 @@ from datetime import date, timedelta
 
 from .calendar_utils import add_working_days, overlaps, week_bounds, working_days_between
 from .policy.engine import CARRY_OVER_CAP, COVERAGE_MIN, LeavePolicyEngine, protected_window
-from .security import untrusted
+from .security import looks_like_injection, untrusted
 from .systems import Systems
 
 
@@ -129,6 +129,7 @@ class TeamConflictAnalyzer:
                 "submitted_at": r["submitted_at"], "submission_rank": info[r["id"]]["submission_rank"],
                 "forfeits_days_if_declined": info[r["id"]]["forfeit_if_declined"],
                 "employee_provided_reason__untrusted_text": untrusted(r["reason"]),
+                "possible_prompt_injection": looks_like_injection(r["reason"]),
                 "critical_role": next((f"{c['role']} on {c['project']}" for c in critical
                                        if c["employee_id"] == r["employee_id"]), None),
             }

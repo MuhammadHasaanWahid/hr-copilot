@@ -9,6 +9,7 @@ from .limits import shared_limits
 from .metrics import Metrics
 from .policy.engine import LeavePolicyEngine
 from .policy.knowledge import PolicyKnowledgeBase
+from .requests import RequestService
 from .security import Principal
 from .seed import open_database
 from .sessions import SessionStore
@@ -40,6 +41,7 @@ class Container:
         self.consistency = ConsistencyChecker(self.systems, self.settings.today)
         self.audit = AuditLog(self.db)
         self.actions = ActionService(self.db, self.audit, self.principal)
+        self.requests = RequestService(self.systems, self.engine, self.actions, self.audit, self.settings.today)
         self.metrics = Metrics(self.db, self.settings)
         self.sessions = SessionStore(self.db, self.settings.session_ttl_hours)
         self.limits = shared_limits(self.settings.rate_limit_per_minute, self.settings.daily_token_budget)
@@ -56,7 +58,7 @@ class Container:
 
     def ctx(self, principal: Principal) -> Ctx:
         return Ctx(principal, self.systems, self.engine, self.conflicts, self.absences, self.consistency,
-                   self.kb, self.settings)
+                   self.kb, self.settings, self.requests)
 
     @property
     def employee_names(self) -> list[str]:

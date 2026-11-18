@@ -170,6 +170,56 @@ class LeavePolicyEngine:
 
         return self._finish(result, checks, approvals, earliest)
 
+    # ---------------------------------------------------- reviewer decision support
+    def assess_request(self, request_id: int) -> dict:
+        """Policy assessment of an already-submitted leave request, for the reviewer.
+        Coverage counts approved leave plus this request (not other pending ones)."""
+        r = self.s.db.one("SELECT * FROM leave_requests WHERE id = ?", (request_id,))
+        if not r:
+            raise ValueError(f"Unknown leave request {request_id}")
+        emp = self.s.hris.get(r["employee_id"])
+        start, end = date.fromisoformat(r["start_date"]), date.fromisoformat(r["end_date"])
+        checks: list[Check] = []
+        bal = self.s.leave.balance(r["employee_id"], r["leave_type"], start.year)
+        if bal is not None:
+            ok = bal["available"] >= 0  # 'available' already nets out this pending request
+            checks.append(Check("Leave balance", "LV-1.2", "pass" if ok else "fail",
+                                f"{bal['available'] + r['working_days']:g} days available before this request, "
+                                f"{bal['available']:g} after." if ok else
+                                f"Not enough balance: short by {-bal['available']:g} day(s)."))
+        if r["leave_type"] != "sick":
+            required = 14 if r["working_days"] > 5 else 3
+            notice = (start - date.fromisoformat(r["submitted_at"])).days
+            checks.append(Check("Notice period", "LV-2.1", "pass" if notice >= required else "warn",
+                                f"Submitted {notice} days ahead ({required} required)."))
+        mgr_id = emp["manager_id"]
+        if mgr_id and r["approver_id"] != mgr_id:
+            checks.append(Check("Approval routing", "LV-5.1", "warn",
+                                "This request is routed to someone who is not the employee's current manager."))
+        for a in self.s.projects.assignments_for([r["employee_id"]]):
+            dl = date.fromisoformat(a["deadline"])
+            if start <= dl <= end and not (r["handover_note"] or "").strip():
+                checks.append(Check("Project handover", "LV-3.3", "warn",
+                                    f"'{a['project_name']}' deadline {dl.isoformat()} is inside the leave and no "
+                                    "handover note was attached."))
+            if a["critical"] and a["critical_role"]:
+                ws, we = protected_window(dl)
+                if overlaps(start, end, ws, we):
+                    checks.append(Check("Critical role near deadline", "LV-3.4", "warn",
+                                        f"{a['project_role']} on '{a['project_name']}' during {ws.isoformat()} to "
+                                        f"{we.isoformat()}: needs a department-head exception."))
+        if mgr_id:
+            cov = self.daily_coverage(mgr_id, start, end, extra=[r], include_pending=False)
+            low = [c for c in cov if c["coverage"] < COVERAGE_MIN]
+            worst = min((c["coverage"] for c in cov), default=1.0)
+            checks.append(Check("Team coverage", "LV-3.1", "warn" if low else "pass",
+                                f"Lowest team availability {round(worst * 100)}% with this approval"
+                                + (f" (below 60% on {len(low)} day(s))." if low else ".")))
+        statuses = {c.status for c in checks}
+        recommendation = "reject" if "fail" in statuses else "review" if "warn" in statuses else "approve"
+        return {"request_id": request_id, "recommendation": recommendation,
+                "checks": [asdict(c) for c in checks], "clauses": sorted({c.clause for c in checks})}
+
     @staticmethod
     def _finish(result: dict, checks: list[Check], approvals: list[dict], earliest: date | None) -> dict:
         result["checks"] = [asdict(c) for c in checks]

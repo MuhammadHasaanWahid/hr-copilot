@@ -1,6 +1,6 @@
 {
  "summary": {
-  "date": "2026-11-18",
+  "date": "2026-11-19",
   "total": 26,
   "passed": 26,
   "verified": 26,
@@ -79,7 +79,7 @@
     "output_tokens": 0
    },
    "cost_usd": 0.0,
-   "reply": "\ud83d\udcdd I've prepared the request (**proposal #1**): Submit 10 day(s) annual leave 2026-12-02 to 2026-12-15. It will be routed to Omar Farooq.\n\nIt is **not submitted yet** \u2014 confirm it in the **Actions** panel."
+   "reply": "\ud83d\udcdd I've prepared the request (**proposal #1**): Submit 10 day(s) annual leave 2026-12-02 to 2026-12-15. It will be routed to Omar Farooq.\n\nIt is **not submitted yet** \u2014 confirm it on the **My requests** page; your manager then reviews it."
   },
   {
    "id": "S1-change-of-mind",
@@ -179,7 +179,7 @@
    "unsupported_claims": [],
    "mode": "offline",
    "tools": [
-    "analyze_absence_patterns"
+    "get_attendance"
    ],
    "outcome": "answered",
    "seconds": 0.0,
@@ -188,7 +188,7 @@
     "output_tokens": 0
    },
    "cost_usd": 0.0,
-   "reply": "Organisation-wide absence is **3.07%** over the last 4 weeks vs **2.26%** baseline. I found **2 significant pattern(s)**:\n\n**1. Customer Support \u2014 monday friday pattern (medium)**  \n58.2% of absences fall on Mondays/Fridays vs ~40% expected (z=3.04, n=67).\n*Hypothesis:* Possible engagement or scheduling issue (e.g. rota fatigue, weekend shift pattern). Not evidence of misconduct about any individual.\n*Consider:* Review rota / shift design and workload distribution with the team lead (AT-1.2). Consider flexible-start or compressed-week pilots and measure impact.\n\n**2. Customer Support / Support Tier 2 \u2014 monday friday pattern (medium)**  \n72.2% of absences fall on Mondays/Fridays vs ~40% expected (z=3.95, n=36).\n*Hypothesis:* Possible engagement or scheduling issue (e.g. rota fatigue, weekend shift pattern). Not evidence of misconduct about any individual.\n*Consider:* Review rota / shift design and workload distribution with the team lead (AT-1.2). Consider flexible-start or compressed-week pilots and measure impact.\n\n**Data quality:** 1 absence(s) recorded during approved leave (excluded), 2 record(s) missing notice time.\n\nThese are statistical signals, not conclusions about individuals [AT-1.1][AT-1.2]."
+   "reply": "Since 2026-08-20 you have **4 absence day(s)** recorded: 2026-11-13, 2026-11-02, 2026-09-17, 2026-09-15. If one of these is wrong, raise an **attendance correction** on the My requests page."
   },
   {
    "id": "S4-routing-fix",
@@ -210,7 +210,7 @@
     "output_tokens": 0
    },
    "cost_usd": 0.0,
-   "reply": "You're right \u2014 I found **2 problem(s)** across systems:\n\n- **Workflow engine:** Approval route points to Hina Shah (Support Team Lead - Tier 1), but HRIS reporting manager is Omar Farooq.\n  - *Root cause:* Route was last synced on 2026-05-02, before the department change on 2026-10-28 - the HRIS-to-workflow sync did not run for this change.\n- **Leave system:** Pending request #5 (2026-12-28 to 2026-12-29) is waiting on Hina Shah, who is no longer your manager.\n\nPolicy says routing must follow the HRIS manager and be updated within two business days of a change [LV-5.1].\n\n\ud83d\udee0\ufe0f I've raised **fix proposal #1**: Re-route approvals for Bilal Ahmed to Omar Farooq and reassign 1 pending request(s). Because this changes system configuration it needs approval by an **HR systems administrator** \u2014 I can't execute it myself. You'll see the status in the Actions panel."
+   "reply": "You're right \u2014 I found **2 problem(s)** across systems:\n\n- **Workflow engine:** Approval route points to Hina Shah (Support Team Lead - Tier 1), but HRIS reporting manager is Omar Farooq.\n  - *Root cause:* Route was last synced on 2026-05-02, before the department change on 2026-10-28 - the HRIS-to-workflow sync did not run for this change.\n- **Leave system:** Pending request #5 (2026-12-28 to 2026-12-29) is waiting on Hina Shah, who is no longer your manager.\n\nPolicy says routing must follow the HRIS manager and be updated within two business days of a change [LV-5.1].\n\n\ud83d\udee0\ufe0f I've raised **fix proposal #1**: Re-route approvals for Bilal Ahmed to Omar Farooq and reassign 1 pending request(s). Because this changes system configuration it needs approval by an **HR systems administrator** \u2014 I can't execute it myself. You can track it on the My requests page."
   },
   {
    "id": "S4-routing-ok",

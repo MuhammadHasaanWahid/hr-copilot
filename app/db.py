@@ -96,7 +96,8 @@ CREATE TABLE leave_balances (
 CREATE TABLE leave_requests (
     id INTEGER PRIMARY KEY AUTOINCREMENT, employee_id TEXT, leave_type TEXT,
     start_date TEXT, end_date TEXT, working_days REAL, status TEXT,
-    approver_id TEXT, submitted_at TEXT, reason TEXT, handover_note TEXT
+    approver_id TEXT, submitted_at TEXT, reason TEXT, handover_note TEXT,
+    decided_by TEXT, decided_at TEXT, decision_comment TEXT
 );
 
 -- ===== Workflow / approval engine (separate system, synced from HRIS) =====

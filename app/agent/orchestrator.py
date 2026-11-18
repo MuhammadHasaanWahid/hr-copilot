@@ -24,7 +24,7 @@ from .offline_agent import OfflineAgent
 log = logging.getLogger("hrcopilot.orchestrator")
 
 CATEGORY_PRIORITY = ["absence_analytics", "team_conflict_analysis", "routing_diagnosis", "leave_planning",
-                     "policy_question", "profile_lookup"]
+                     "hr_request", "request_tracking", "policy_question", "profile_lookup"]
 MAX_EVIDENCE_ITEMS = 60
 
 
@@ -112,7 +112,7 @@ class Orchestrator:
             if report.unsupported:
                 notes.append("could not verify " + ", ".join(report.unsupported[:8]) + " against system data")
             if report.false_action_claims:
-                notes.append("an action described as done was not executed - check the Actions tab")
+                notes.append("an action described as done was not executed - check 'My requests'")
             if report.invalid_citations:
                 notes.append("policy reference(s) " + ", ".join(report.invalid_citations) + " do not exist")
             reply += "\n\n> ⚠️ *Automatic check: " + "; ".join(notes) + ". Treat these parts with caution.*"
